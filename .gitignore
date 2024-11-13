@@ -1,0 +1,8 @@
+shaders/**/*.spirv
+bundler
+libphoenix.a
+libphoenix.so
+compile_flags.txt
+todo.txt
+src/**/*.d
+src/**/*.o
