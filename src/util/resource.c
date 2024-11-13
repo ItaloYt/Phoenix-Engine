@@ -39,6 +39,11 @@ void resource_destroy(Resource resource) {
   free(resource);
 }
 
+void resources_destroy() {
+  for(unsigned index = 0; index < resources_length; ++index)
+    resource_destroy(resources[index]);
+}
+
 const char *resource_get_handle(Resource resource) { return (!resource ? NULL : resource->handle); }
 const char *resource_get_name(Resource resource) { return (!resource ? NULL : resource->name); }
 ResourceType resource_get_type(Resource resource) { return (!resource ? TYPE_UNKNOWN : resource->type); }

@@ -1,5 +1,4 @@
 #include "renderer/vulkan/render_pass.h"
-#include "renderer/vulkan/command_buffer.h"
 #include "renderer/vulkan/device.h"
 #include "renderer/vulkan/swapchain.h"
 #include "util/error.h"
@@ -81,33 +80,6 @@ Error render_pass_create(RenderPass *render_pass, Swapchain swapchain) {
     return RENDER_PASS_CREATE_ERROR;
 
   return SUCCESS;
-}
-
-void render_pass_begin(RenderPass render_pass, CommandBuffer buffer, VkFramebuffer framebuffer) {
-  if(!render_pass || !buffer) return;
-
-  const VkExtent2D *extent = swapchain_get_extent(render_pass->swapchain);
-
-  const VkCommandBuffer vk_buffer = command_buffer_get_handle(buffer);
-
-  VkRenderPassBeginInfo info = {
-    .sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO,
-    .pNext = NULL,
-    .renderPass = render_pass->handle,
-    .framebuffer = framebuffer,
-    .renderArea = {
-      .offset = { 0, 0 },
-      .extent = *extent,
-    },
-    .clearValueCount = 1,
-    .pClearValues = (VkClearValue[]){
-      (VkClearValue){
-        .color = { { 0, 0, 0, 1 } },
-      },
-    },
-  };
-
-  vkCmdBeginRenderPass(vk_buffer, &info, VK_SUBPASS_CONTENTS_INLINE);
 }
 
 void render_pass_destroy(RenderPass render_pass) {

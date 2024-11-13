@@ -31,6 +31,36 @@ Error fence_create(Fence *fence, Device device) {
   return SUCCESS;
 }
 
+Error fences_wait(Fence *fences, unsigned length) {
+  if(length == 0) return SUCCESS;
+
+  const VkDevice vk_device = device_get_handle(fences[0]->device);
+
+  VkFence vk_fences[length];
+  for(unsigned index = 0; index < length; ++index)
+    vk_fences[index] = fences[index]->handle;
+
+  if(vkWaitForFences(vk_device, length, vk_fences, VK_TRUE, -1) != VK_SUCCESS)
+    return FENCES_WAIT_ERROR;
+
+  return SUCCESS;
+}
+
+Error fences_reset(Fence *fences, unsigned length) {
+  if(length == 0) return SUCCESS;
+
+  const VkDevice vk_device = device_get_handle(fences[0]->device);
+
+  VkFence vk_fences[length];
+  for(unsigned index = 0; index < length; ++index)
+    vk_fences[index] = fences[index]->handle;
+
+  if(vkResetFences(vk_device, length, vk_fences) != VK_SUCCESS)
+    return FENCES_RESET_ERROR;
+
+  return SUCCESS;
+}
+
 void fence_destroy(Fence fence) {
   if(!fence) return;
 

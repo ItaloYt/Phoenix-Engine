@@ -19,14 +19,15 @@ File resource;
   "  unsigned size;\n"                                                                                                                          \
   "};\n"                                                                                                                                        \
   "\n"                                                                                                                                          \
-  "const unsigned resource_count = %u;\n"                                                                                                       \
+  "const unsigned resources_length = %u;\n"                                                                                                     \
+  "Resource resources[%u];\n"                                                                                                                   \
   "\n"                                                                                                                                          \
-  "Error resource_load(Resource *resources) {\n"                                                                                                \
+  "Error resources_load() {\n"                                                                                                                  \
   "  struct ResourceBundle bundles[] = {\n"                                                                                                     \
   "%s"                                                                                                                                          \
   "  };\n"                                                                                                                                      \
   "\n"                                                                                                                                          \
-  "  for(unsigned index = 0; index < resource_count; ++index) {\n"                                                                              \
+  "  for(unsigned index = 0; index < resources_length; ++index) {\n"                                                                            \
   "    if(resource_create(resources + index, bundles[index].type, bundles[index].name, bundles[index].data, bundles[index].size) != SUCCESS)\n" \
   "      return RESOURCE_LOAD_ERROR;\n"                                                                                                         \
   "  }\n"                                                                                                                                       \
@@ -50,7 +51,7 @@ unsigned rbuffer_length;
 
 char *path;
 
-unsigned resource_count;
+unsigned resources_length;
 
 void clear();
 int parse_resource(const char **fields, unsigned *lengths);
@@ -133,7 +134,7 @@ int main(int argc, char **argv) {
     return 1;
   }
 
-  unsigned length = snprintf(NULL, 0, full_model, resource_count, rbuffer);
+  unsigned length = snprintf(NULL, 0, full_model, resources_length, resources_length, rbuffer);
 
   buffer = malloc(length + 1);
   if(!buffer) {
@@ -141,7 +142,7 @@ int main(int argc, char **argv) {
     return 1;
   }
 
-  snprintf(buffer, length + 1, full_model, resource_count, rbuffer);
+  snprintf(buffer, length + 1, full_model, resources_length, resources_length, rbuffer);
 
   if(file_write(output, 0, buffer, length) != SUCCESS) {
     printf("ERROR: Failed to write to output file\n");
@@ -211,7 +212,7 @@ int parse_resource(const char **fields, unsigned *lengths) {
 
   rbuffer_length += length;
 
-  ++resource_count;
+  ++resources_length;
 
   return 0;
 }

@@ -3,13 +3,16 @@
 
 #include "renderer/vulkan/command_pool.h"
 #include "renderer/vulkan/device.h"
+#include "renderer/vulkan/framebuffers.h"
+#include "renderer/vulkan/render_pass.h"
 #include "util/error.h"
 #include <vulkan/vulkan_core.h>
 
 typedef struct CommandBuffer *CommandBuffer;
 
 Error command_buffer_create(CommandBuffer *buffer, CommandPool pool);
-Error command_buffer_begin(CommandBuffer buffer);
+Error command_buffer_begin(CommandBuffer buffer, RenderPass render_pass, Framebuffers framebuffers, unsigned index);
+Error command_buffer_end(CommandBuffer buffer);
 void command_buffer_destroy(CommandBuffer buffer);
 
 CommandPool command_buffer_get_command_pool(CommandBuffer buffer);

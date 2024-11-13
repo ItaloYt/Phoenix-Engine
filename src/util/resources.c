@@ -8,9 +8,10 @@ struct ResourceBundle {
   unsigned size;
 };
 
-const unsigned resource_count = 2;
+const unsigned resources_length = 2;
+Resource resources[2];
 
-Error resource_load(Resource *resources) {
+Error resources_load() {
   struct ResourceBundle bundles[] = {
     (struct ResourceBundle){
       .name = "shaders/base.vert",
@@ -26,7 +27,7 @@ Error resource_load(Resource *resources) {
     },
   };
 
-  for(unsigned index = 0; index < resource_count; ++index) {
+  for(unsigned index = 0; index < resources_length; ++index) {
     if(resource_create(resources + index, bundles[index].type, bundles[index].name, bundles[index].data, bundles[index].size) != SUCCESS)
       return RESOURCE_LOAD_ERROR;
   }

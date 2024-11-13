@@ -2,6 +2,7 @@ cflags := -O0 -g -fno-omit-frame-pointer -Wall -Werror -fpic -Iinclude
 
 src := \
 	src/window.c \
+	src/renderer.c \
 	src/renderer/vulkan/instance.c \
 	src/renderer/vulkan/physical_devices.c \
 	src/renderer/vulkan/device.c \

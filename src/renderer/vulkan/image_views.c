@@ -58,7 +58,7 @@ Error image_views_create(ImageViews *views, Images images) {
     info.image = vk_images[index];
 
     if(vkCreateImageView(vk_device, &info, NULL, (*views)->handles + index) != VK_SUCCESS)
-      return IMAGE_VIEW_CREATE_ERROR;
+      return IMAGE_VIEWS_CREATE_ERROR;
   }
 
   return SUCCESS;
