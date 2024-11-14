@@ -3,7 +3,6 @@
 #include "renderer/vulkan/pipeline_layout.h"
 #include "renderer/vulkan/render_pass.h"
 #include "renderer/vulkan/shader_module.h"
-#include "renderer/vulkan/swapchain.h"
 #include "util/error.h"
 #include <stdlib.h>
 #include <vulkan/vulkan_core.h>
@@ -19,9 +18,6 @@ struct Pipeline {
 
 Error pipeline_create(Pipeline *pipeline, PipelineLayout layout, RenderPass render_pass, ShaderModule vertex_shader, ShaderModule fragment_shader) {
   if(!pipeline || !layout || !vertex_shader || !fragment_shader) return NULL_HANDLE_ERROR;
-
-  const Swapchain swapchain = render_pass_get_swapchain(render_pass);
-  const VkExtent2D *extent = swapchain_get_extent(swapchain);
 
   const Device device = pipeline_layout_get_device(layout);
   const VkDevice vk_device = device_get_handle(device);
@@ -88,23 +84,9 @@ Error pipeline_create(Pipeline *pipeline, PipelineLayout layout, RenderPass rend
       .pNext = NULL,
       .flags = 0,
       .viewportCount = 1,
-      .pViewports = (VkViewport[]){
-        (VkViewport){
-          .x = 0,
-          .y = 0,
-          .width = extent->width,
-          .height = extent->height,
-          .minDepth = 0,
-          .maxDepth = 1,
-        },
-      },
+      .pViewports = NULL,
       .scissorCount = 1,
-      .pScissors = (VkRect2D[]){
-        (VkRect2D){
-          .offset = { .x = 0, .y = 0 },
-          .extent = *extent,
-        },
-      },
+      .pScissors = NULL,
     },
     .pRasterizationState = &(VkPipelineRasterizationStateCreateInfo){
       .sType = VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO,
@@ -158,7 +140,7 @@ Error pipeline_create(Pipeline *pipeline, PipelineLayout layout, RenderPass rend
       .sType = VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO,
       .pNext = NULL,
       .flags = 0,
-      .dynamicStateCount = 0, // TODO: Change this to allow window resizing
+      .dynamicStateCount = 2,
       .pDynamicStates = (VkDynamicState[]){
         VK_DYNAMIC_STATE_SCISSOR,
         VK_DYNAMIC_STATE_VIEWPORT,

@@ -57,6 +57,47 @@ Error framebuffers_create(Framebuffers *framebuffers, RenderPass render_pass, Im
   return SUCCESS;
 }
 
+Error framebuffers_recreate(Framebuffers framebuffers) {
+  if(!framebuffers) return NULL_HANDLE_ERROR;
+
+  const VkRenderPass vk_render_pass = render_pass_get_handle(framebuffers->render_pass);
+  const Swapchain swapchain = render_pass_get_swapchain(framebuffers->render_pass);
+  const VkExtent2D *extent = swapchain_get_extent(swapchain);
+  const VkDevice vk_device = device_get_handle(framebuffers->device);
+  const VkImageView *vk_views = image_views_get_handles(framebuffers->views);
+
+  for(unsigned index = 0; index < framebuffers->length; ++index)
+    vkDestroyFramebuffer(vk_device, framebuffers->handles[index], NULL);
+
+  framebuffers->length = image_views_get_length(framebuffers->views);
+
+  void *tmp = realloc(framebuffers->handles, framebuffers->length * sizeof(VkFramebuffer));
+  if(!tmp) return ALLOCATION_ERROR;
+
+  framebuffers->handles = tmp;
+
+  VkFramebufferCreateInfo info = {
+    .sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO,
+    .pNext = NULL,
+    .flags = 0,
+    .renderPass = vk_render_pass,
+    .attachmentCount = 1,
+    .pAttachments = NULL, // Will be set later
+    .width = extent->width,
+    .height = extent->height,
+    .layers = 1,
+  };
+
+  for(unsigned index = 0; index < framebuffers->length; ++index) {
+    info.pAttachments = vk_views + index;
+
+    if(vkCreateFramebuffer(vk_device, &info, NULL, framebuffers->handles + index) != VK_SUCCESS)
+      return FRAMEBUFFER_CREATE_ERROR;
+  }
+
+  return SUCCESS;
+}
+
 void framebuffers_destroy(Framebuffers framebuffers) {
   if(!framebuffers) return;
 

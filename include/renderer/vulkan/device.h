@@ -8,6 +8,7 @@
 typedef struct Device *Device;
 
 Error device_create(Device *device, Surface surface, VkPhysicalDevice physical);
+Error device_reload_surface(Device device);
 void device_destroy(Device device);
 
 Surface device_get_surface(Device device);

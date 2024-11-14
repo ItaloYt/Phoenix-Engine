@@ -7,6 +7,7 @@
 typedef struct Images *Images;
 
 Error images_create(Images *images, Swapchain swapchain);
+Error images_recreate(Images images);
 void images_destroy(Images images);
 
 Swapchain images_get_swapchain(Images images);

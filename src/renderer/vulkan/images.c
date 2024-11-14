@@ -37,6 +37,26 @@ Error images_create(Images *images, Swapchain swapchain) {
   return SUCCESS;
 }
 
+Error images_recreate(Images images) {
+  if(!images) return NULL_HANDLE_ERROR;
+
+  const VkDevice vk_device = device_get_handle(images->device);
+  const VkSwapchainKHR vk_swapchain = swapchain_get_handle(images->swapchain);
+
+  if(vkGetSwapchainImagesKHR(vk_device, vk_swapchain, &images->length, NULL) != VK_SUCCESS)
+    return IMAGES_GET_ERROR;
+
+  void *tmp = realloc(images->handles, images->length * sizeof(VkImage));
+  if(!tmp) return ALLOCATION_ERROR;
+
+  images->handles = tmp;
+
+  if(vkGetSwapchainImagesKHR(vk_device, vk_swapchain, &images->length, images->handles) != VK_SUCCESS)
+    return IMAGES_GET_ERROR;
+
+  return SUCCESS;
+}
+
 void images_destroy(Images images) {
   if(!images) return;
 

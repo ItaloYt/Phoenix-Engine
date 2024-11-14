@@ -24,8 +24,11 @@
 
 typedef struct Renderer *Renderer;
 
+extern const unsigned renderer_frames_maximum;
+
 Error renderer_create(Renderer *renderer, Window window, const char *name, unsigned version);
 Error renderer_draw(Renderer renderer);
+void renderer_resize(Renderer renderer);
 void renderer_destroy(Renderer renderer);
 
 Error select_physical_device(const VkPhysicalDevice *devices, unsigned length, VkPhysicalDevice *device);

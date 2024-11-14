@@ -10,7 +10,7 @@
 
 typedef struct CommandBuffer *CommandBuffer;
 
-Error command_buffer_create(CommandBuffer *buffer, CommandPool pool);
+Error command_buffers_create(CommandBuffer *buffers, CommandPool pool, unsigned count);
 Error command_buffer_begin(CommandBuffer buffer, RenderPass render_pass, Framebuffers framebuffers, unsigned index);
 Error command_buffer_end(CommandBuffer buffer);
 void command_buffer_destroy(CommandBuffer buffer);

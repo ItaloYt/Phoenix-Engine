@@ -80,8 +80,17 @@ Error queue_present(Queue queue, Swapchain swapchain, Semaphore *wait, unsigned 
     .pResults = NULL,
   };
 
-  if(vkQueuePresentKHR(queue->handle, &info) != VK_SUCCESS)
-    return QUEUE_PRESENT_ERROR;
+  switch(vkQueuePresentKHR(queue->handle, &info)) {
+    case SUCCESS:
+      break;
+
+    case VK_SUBOPTIMAL_KHR:
+    case VK_ERROR_OUT_OF_DATE_KHR:
+      return SWAPCHAIN_OUT_OF_DATE_ERROR;
+
+    default:
+      return QUEUE_PRESENT_ERROR;
+  }
 
   return SUCCESS;
 }

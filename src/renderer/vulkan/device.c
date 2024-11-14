@@ -122,6 +122,39 @@ Error device_create(Device *device, Surface surface, VkPhysicalDevice physical) 
   return SUCCESS;
 }
 
+Error device_reload_surface(Device device) {
+  if(!device) return NULL_HANDLE_ERROR;
+
+  const VkSurfaceKHR vk_surface = surface_get_handle(device->surface);
+
+  if(vkGetPhysicalDeviceSurfaceCapabilitiesKHR(device->physical, vk_surface, &device->capabilities) != VK_SUCCESS)
+    return DEVICE_GET_CAPABILITIES_ERROR;
+
+  if(vkGetPhysicalDeviceSurfaceFormatsKHR(device->physical, vk_surface, &device->formats_length, NULL) != VK_SUCCESS)
+    return DEVICE_GET_FORMATS_ERROR;
+
+  void *tmp = realloc(device->formats, device->formats_length * sizeof(VkSurfaceFormatKHR));
+  if(!tmp) return ALLOCATION_ERROR;
+
+  device->formats = tmp;
+
+  if(vkGetPhysicalDeviceSurfaceFormatsKHR(device->physical, vk_surface, &device->formats_length, device->formats) != VK_SUCCESS)
+    return DEVICE_GET_FORMATS_ERROR;
+
+  if(vkGetPhysicalDeviceSurfacePresentModesKHR(device->physical, vk_surface, &device->modes_length, NULL) != VK_SUCCESS)
+    return DEVICE_GET_PRESENT_MODES_ERROR;
+
+  tmp = realloc(device->modes, device->modes_length * sizeof(VkPresentModeKHR));
+  if(!tmp) return ALLOCATION_ERROR;
+
+  device->modes = tmp;
+
+  if(vkGetPhysicalDeviceSurfacePresentModesKHR(device->physical, vk_surface, &device->modes_length, device->modes) != VK_SUCCESS)
+    return DEVICE_GET_PRESENT_MODES_ERROR;
+
+  return SUCCESS;
+}
+
 void device_destroy(Device device) {
   if(!device) return;
 

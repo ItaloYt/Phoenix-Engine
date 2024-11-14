@@ -36,7 +36,7 @@ Error image_views_create(ImageViews *views, Images images) {
     .sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO,
     .pNext = NULL,
     .flags = 0,
-    .image = NULL,
+    .image = NULL, // Will be set later
     .viewType = VK_IMAGE_VIEW_TYPE_2D,
     .format = format->format,
     .components = {
@@ -58,6 +58,56 @@ Error image_views_create(ImageViews *views, Images images) {
     info.image = vk_images[index];
 
     if(vkCreateImageView(vk_device, &info, NULL, (*views)->handles + index) != VK_SUCCESS)
+      return IMAGE_VIEWS_CREATE_ERROR;
+  }
+
+  return SUCCESS;
+}
+
+Error image_views_recreate(ImageViews views) {
+  if(!views) return NULL_HANDLE_ERROR;
+
+  const VkDevice vk_device = device_get_handle(views->device);
+  const VkImage *vk_images = images_get_handles(views->images);
+  const Swapchain swapchain = images_get_swapchain(views->images);
+  const VkSurfaceFormatKHR *format = swapchain_get_surface_format(swapchain);
+
+  for(unsigned index = 0; index < views->length; ++index)
+    vkDestroyImageView(vk_device, views->handles[index], NULL);
+
+  views->length = images_get_length(views->images);
+
+  void *tmp = realloc(views->handles, views->length * sizeof(VkImageView));
+  if(!tmp) return ALLOCATION_ERROR;
+
+  views->handles = tmp;
+
+  VkImageViewCreateInfo info = {
+    .sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO,
+    .pNext = NULL,
+    .flags = 0,
+    .image = NULL,
+    .viewType = VK_IMAGE_VIEW_TYPE_2D,
+    .format = format->format,
+    .components = {
+      .r = VK_COMPONENT_SWIZZLE_IDENTITY,
+      .g = VK_COMPONENT_SWIZZLE_IDENTITY,
+      .b = VK_COMPONENT_SWIZZLE_IDENTITY,
+      .a = VK_COMPONENT_SWIZZLE_IDENTITY,
+    },
+    .subresourceRange = {
+      .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
+      .baseMipLevel = 0,
+      .levelCount = 1,
+      .baseArrayLayer = 0,
+      .layerCount = 1,
+    },
+  };
+
+  for(unsigned index = 0; index < views->length; ++index) {
+    info.image = vk_images[index];
+
+    if(vkCreateImageView(vk_device, &info, NULL, views->handles + index) != VK_SUCCESS)
       return IMAGE_VIEWS_CREATE_ERROR;
   }
 

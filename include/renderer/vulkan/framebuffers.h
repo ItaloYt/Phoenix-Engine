@@ -10,6 +10,7 @@
 typedef struct Framebuffers *Framebuffers;
 
 Error framebuffers_create(Framebuffers *framebuffers, RenderPass render_pass, ImageViews views);
+Error framebuffers_recreate(Framebuffers framebuffers);
 void framebuffers_destroy(Framebuffers framebuffers);
 
 RenderPass framebuffers_get_render_pass(Framebuffers framebuffers);

@@ -19,8 +19,13 @@
 #include "util/error.h"
 #include "util/resource.h"
 #include "window.h"
+#include <stdio.h>
 #include <stdlib.h>
 #include <vulkan/vulkan_core.h>
+
+#define FRAMES_MAX 2
+
+const unsigned renderer_frames_maximum = FRAMES_MAX;
 
 struct Renderer {
   Window window;
@@ -40,10 +45,15 @@ struct Renderer {
   Pipeline pipeline;
   Framebuffers framebuffers;
   CommandPool pool;
-  CommandBuffer buffer; // Graphic Command Buffer
-  Semaphore render_signal;
-  Fence frame_signal;
+  CommandBuffer buffers[FRAMES_MAX];
+  Semaphore image_signals[FRAMES_MAX];
+  Semaphore render_signals[FRAMES_MAX];
+  Fence frame_signals[FRAMES_MAX];
+  unsigned frame;
+  unsigned char resized;
 };
+
+static Error recreate_swapchain(Renderer renderer);
 
 Error renderer_create(Renderer *renderer, Window window, const char *name, unsigned version) {
   if(!renderer || !window) return NULL_HANDLE_ERROR;
@@ -96,7 +106,6 @@ Error renderer_create(Renderer *renderer, Window window, const char *name, unsig
   if(select_surface_present_mode(modes, modes_length, &mode) != SUCCESS)
     return RENDERER_SELECT_SURFACE_PRESENT_MODE_ERROR;
 
-  // TODO: Search for values in swapchain
   if(swapchain_create(&(*renderer)->swapchain, (*renderer)->device, &format, mode) != SUCCESS)
     return SWAPCHAIN_CREATE_ERROR;
 
@@ -116,6 +125,7 @@ Error renderer_create(Renderer *renderer, Window window, const char *name, unsig
   if(shader_module_create(&(*renderer)->vertex_shader, (*renderer)->device, shader_data, shader_size) != SUCCESS)
     return SHADER_MODULE_CREATE_ERROR;
 
+  // Fragment Shader
   shader_data = resource_get_handle(resources[1]);
   shader_size = resource_get_size(resources[1]);
 
@@ -135,14 +145,21 @@ Error renderer_create(Renderer *renderer, Window window, const char *name, unsig
   if(command_pool_create(&(*renderer)->pool, (*renderer)->device, graphic_family_index) != SUCCESS)
     return COMMAND_POOL_CREATE_ERROR;
 
-  if(command_buffer_create(&(*renderer)->buffer, (*renderer)->pool) != SUCCESS)
+  if(command_buffers_create((*renderer)->buffers, (*renderer)->pool, FRAMES_MAX) != SUCCESS)
     return COMMAND_BUFFER_CREATE_ERROR;
 
-  if(semaphore_create(&(*renderer)->render_signal, (*renderer)->device) != SUCCESS)
-    return SEMAPHORE_CREATE_ERROR;
+  for(unsigned index = 0; index < FRAMES_MAX; ++index) {
+    if(semaphore_create((*renderer)->image_signals + index, (*renderer)->device) != SUCCESS)
+      return SEMAPHORE_CREATE_ERROR;
 
-  if(fence_create(&(*renderer)->frame_signal, (*renderer)->device) != SUCCESS)
-    return FENCE_CREATE_ERROR;
+    if(semaphore_create((*renderer)->render_signals + index, (*renderer)->device) != SUCCESS)
+      return SEMAPHORE_CREATE_ERROR;
+
+    if(fence_create((*renderer)->frame_signals + index, (*renderer)->device) != SUCCESS)
+      return FENCE_CREATE_ERROR;
+  }
+
+  (*renderer)->frame = 0;
 
   return SUCCESS;
 }
@@ -150,51 +167,107 @@ Error renderer_create(Renderer *renderer, Window window, const char *name, unsig
 Error renderer_draw(Renderer renderer) {
   if(!renderer) return NULL_HANDLE_ERROR;
 
-  const VkCommandBuffer vk_buffer = command_buffer_get_handle(renderer->buffer);
+  const VkCommandBuffer vk_buffer = command_buffer_get_handle(renderer->buffers[renderer->frame]);
   const VkPipeline vk_pipeline = pipeline_get_handle(renderer->pipeline);
-  const Semaphore image_signal = swapchain_get_image_signal(renderer->swapchain);
+  const VkExtent2D *extent = swapchain_get_extent(renderer->swapchain);
 
-  if(fences_wait((Fence[]){ renderer->frame_signal }, 1) != SUCCESS)
+  if(fences_wait(renderer->frame_signals + renderer->frame, 1) != SUCCESS)
     return FENCES_WAIT_ERROR;
 
-  if(fences_reset((Fence[]){ renderer->frame_signal }, 1) != SUCCESS)
-    return FENCES_RESET_ERROR;
+  switch(swapchain_acquire_image(renderer->swapchain, renderer->image_signals[renderer->frame], NULL)) {
+    case SUCCESS:
+      break;
 
-  if(swapchain_acquire_image(renderer->swapchain, NULL) != SUCCESS)
-    return SWAPCHAIN_ACQUIRE_IMAGE_ERROR;
+    case SWAPCHAIN_OUT_OF_DATE_ERROR:
+      return recreate_swapchain(renderer);
+
+    default:
+      return SWAPCHAIN_ACQUIRE_IMAGE_ERROR;
+  }
+
+  if(fences_reset(renderer->frame_signals + renderer->frame, 1) != SUCCESS)
+    return FENCES_RESET_ERROR;
 
   unsigned image_index = swapchain_get_image_index(renderer->swapchain);
 
   // Record Command Buffer
-  if(command_buffer_begin(renderer->buffer, renderer->render_pass, renderer->framebuffers, image_index) != SUCCESS)
+  if(command_buffer_begin(renderer->buffers[renderer->frame], renderer->render_pass, renderer->framebuffers, image_index) != SUCCESS)
     return COMMAND_BUFFER_BEGIN_ERROR;
 
   vkCmdBindPipeline(vk_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, vk_pipeline);
+  vkCmdSetViewport(
+    vk_buffer, 0, 1,
+    (VkViewport[]){
+      (VkViewport){
+        .x = 0,
+        .y = 0,
+        .width = extent->width,
+        .height = extent->height,
+        .minDepth = 0,
+        .maxDepth = 1,
+      },
+    }
+  );
+  vkCmdSetScissor(
+    vk_buffer, 0, 1,
+    (VkRect2D[]){
+      (VkRect2D){
+        .offset = { 0, 0 },
+        .extent = *extent,
+      },
+    }
+  );
   vkCmdDraw(vk_buffer, 3, 1, 0, 0);
 
-  if(command_buffer_end(renderer->buffer) != SUCCESS)
+  if(command_buffer_end(renderer->buffers[renderer->frame]) != SUCCESS)
     return COMMAND_BUFFER_END_ERROR;
 
   // Submit
   if(queue_submit(
-       renderer->graphic, renderer->buffer, (Semaphore[]){ image_signal },
+       renderer->graphic, renderer->buffers[renderer->frame], renderer->image_signals + renderer->frame,
        (VkPipelineStageFlags[]){ VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT },
-       1, (Semaphore[]){ renderer->render_signal }, 1, renderer->frame_signal
+       1, renderer->render_signals + renderer->frame, 1, renderer->frame_signals[renderer->frame]
      ) != SUCCESS)
     return QUEUE_SUBMIT_ERROR;
 
-  if(queue_present(renderer->present, renderer->swapchain, (Semaphore[]){ renderer->render_signal }, 1) != SUCCESS)
-    return QUEUE_PRESENT_ERROR;
+  Error result = queue_present(renderer->present, renderer->swapchain, renderer->render_signals + renderer->frame, 1);
+  if(renderer->resized) result = SWAPCHAIN_OUT_OF_DATE_ERROR;
+
+  switch(result) {
+    case SUCCESS:
+      break;
+
+    case SWAPCHAIN_OUT_OF_DATE_ERROR: {
+      Error error = recreate_swapchain(renderer);
+
+      if(error != SUCCESS) return error;
+    } break;
+
+    default:
+      return SWAPCHAIN_ACQUIRE_IMAGE_ERROR;
+  }
+
+  renderer->frame = (renderer->frame + 1) % FRAMES_MAX;
 
   return SUCCESS;
+}
+
+void renderer_resize(Renderer renderer) {
+  if(!renderer) return;
+
+  renderer->resized = 1;
 }
 
 void renderer_destroy(Renderer renderer) {
   if(!renderer) return;
 
-  fence_destroy(renderer->frame_signal);
-  semaphore_destroy(renderer->render_signal);
-  command_buffer_destroy(renderer->buffer);
+  for(unsigned index = 0; index < FRAMES_MAX; ++index) {
+    fence_destroy(renderer->frame_signals[index]);
+    semaphore_destroy(renderer->render_signals[index]);
+    semaphore_destroy(renderer->image_signals[index]);
+    command_buffer_destroy(renderer->buffers[index]);
+  }
+
   command_pool_destroy(renderer->pool);
   framebuffers_destroy(renderer->framebuffers);
   pipeline_destroy(renderer->pipeline);
@@ -265,6 +338,48 @@ PipelineLayout renderer_get_layout(Renderer renderer) { return (!renderer ? NULL
 Pipeline renderer_get_pipeline(Renderer renderer) { return (!renderer ? NULL : renderer->pipeline); }
 Framebuffers renderer_get_framebuffers(Renderer renderer) { return (!renderer ? NULL : renderer->framebuffers); }
 CommandPool renderer_get_pool(Renderer renderer) { return (!renderer ? NULL : renderer->pool); }
-CommandBuffer renderer_get_buffer(Renderer renderer) { return (!renderer ? NULL : renderer->buffer); }
-Semaphore renderer_get_render_signal(Renderer renderer) { return (!renderer ? NULL : renderer->render_signal); }
-Fence renderer_get_frame_signal(Renderer renderer) { return (!renderer ? NULL : renderer->frame_signal); }
+CommandBuffer *renderer_get_buffers(Renderer renderer) { return (!renderer ? NULL : renderer->buffers); }
+Semaphore *renderer_get_render_signals(Renderer renderer) { return (!renderer ? NULL : renderer->render_signals); }
+Fence *renderer_get_frame_signals(Renderer renderer) { return (!renderer ? NULL : renderer->frame_signals); }
+unsigned renderer_get_frame(Renderer renderer) { return (!renderer ? 0 : renderer->frame); }
+
+static Error recreate_swapchain(Renderer renderer) {
+  const VkDevice vk_device = device_get_handle(renderer->device);
+
+  vkDeviceWaitIdle(vk_device);
+
+  if(device_reload_surface(renderer->device) != SUCCESS)
+    return DEVICE_RELOAD_SURFACE_ERROR;
+
+  const VkSurfaceFormatKHR *formats = device_get_surface_formats(renderer->device);
+  const unsigned formats_length = device_get_surface_formats_length(renderer->device);
+
+  VkSurfaceFormatKHR format;
+
+  if(select_surface_format(formats, formats_length, &format) != SUCCESS)
+    return RENDERER_SELECT_SURFACE_FORMAT_ERROR;
+
+  const VkPresentModeKHR *modes = device_get_surface_present_modes(renderer->device);
+  const unsigned modes_length = device_get_surface_present_modes_length(renderer->device);
+
+  VkPresentModeKHR mode;
+
+  if(select_surface_present_mode(modes, modes_length, &mode) != SUCCESS)
+    return RENDERER_SELECT_SURFACE_PRESENT_MODE_ERROR;
+
+  if(swapchain_recreate(renderer->swapchain, &format, mode) != SUCCESS)
+    return SWAPCHAIN_RECREATE_ERROR;
+
+  if(images_recreate(renderer->images) != SUCCESS)
+    return IMAGES_RECREATE_ERROR;
+
+  if(image_views_recreate(renderer->views) != SUCCESS)
+    return IMAGE_VIEWS_RECREATE_ERROR;
+
+  if(framebuffers_recreate(renderer->framebuffers) != SUCCESS)
+    return FRAMEBUFFERS_RECREATE_ERROR;
+
+  renderer->resized = 0;
+
+  return SUCCESS;
+}

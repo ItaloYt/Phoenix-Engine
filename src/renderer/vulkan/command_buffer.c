@@ -14,29 +14,35 @@ struct CommandBuffer {
   VkCommandBuffer handle;
 };
 
-Error command_buffer_create(CommandBuffer *buffer, CommandPool pool) {
-  if(!buffer || !pool) return NULL_HANDLE_ERROR;
+Error command_buffers_create(CommandBuffer *buffers, CommandPool pool, unsigned count) {
+  if(!pool) return NULL_HANDLE_ERROR;
+  if(count == 0) return SUCCESS;
 
   const VkCommandPool vk_pool = command_pool_get_handle(pool);
   const Device device = command_pool_get_device(pool);
   const VkDevice vk_device = device_get_handle(device);
 
-  *buffer = malloc(sizeof(struct CommandBuffer));
-  if(!*buffer) return ALLOCATION_ERROR;
-
-  (*buffer)->pool = pool;
-  (*buffer)->device = device;
+  VkCommandBuffer vk_buffers[count];
 
   VkCommandBufferAllocateInfo info = {
     .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO,
     .pNext = NULL,
     .commandPool = vk_pool,
     .level = VK_COMMAND_BUFFER_LEVEL_PRIMARY,
-    .commandBufferCount = 1,
+    .commandBufferCount = count,
   };
 
-  if(vkAllocateCommandBuffers(vk_device, &info, &(*buffer)->handle) != VK_SUCCESS)
+  if(vkAllocateCommandBuffers(vk_device, &info, vk_buffers) != VK_SUCCESS)
     return COMMAND_BUFFER_CREATE_ERROR;
+
+  for(unsigned index = 0; index < count; ++index) {
+    buffers[index] = malloc(sizeof(struct CommandBuffer));
+    if(!buffers[index]) return ALLOCATION_ERROR;
+
+    buffers[index]->pool = pool;
+    buffers[index]->device = device;
+    buffers[index]->handle = vk_buffers[index];
+  }
 
   return SUCCESS;
 }

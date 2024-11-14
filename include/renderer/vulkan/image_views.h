@@ -7,6 +7,7 @@
 typedef struct ImageViews *ImageViews;
 
 Error image_views_create(ImageViews *views, Images images);
+Error image_views_recreate(ImageViews views);
 void image_views_destroy(ImageViews views);
 
 Images image_views_get_images(ImageViews views);

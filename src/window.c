@@ -9,7 +9,7 @@ struct Window {
   GLFWwindow *handle;
 };
 
-Error window_create(Window *window, const char *title, unsigned width, unsigned height) {
+Error window_create(Window *window, void *context, const char *title, unsigned width, unsigned height) {
   if(!window || !title) return NULL_HANDLE_ERROR;
 
   if(!glfwInit()) return WINDOW_FRAMEWORK_ERROR;
@@ -18,10 +18,13 @@ Error window_create(Window *window, const char *title, unsigned width, unsigned 
   if(!*window) return ALLOCATION_ERROR;
 
   glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
-  glfwWindowHint(GLFW_RESIZABLE, GLFW_FALSE);
+  glfwWindowHint(GLFW_RESIZABLE, GLFW_TRUE);
 
   (*window)->handle = glfwCreateWindow(width, height, title, NULL, NULL);
   if(!(*window)->handle) return WINDOW_CREATE_ERROR;
+
+  glfwSetWindowUserPointer((*window)->handle, context);
+  glfwSetFramebufferSizeCallback((*window)->handle, (GLFWframebuffersizefun)window_resize_callback);
 
   return SUCCESS;
 }
@@ -55,6 +58,9 @@ void window_get_framebuffer_size(Window window, unsigned *width, unsigned *heigh
 
   glfwGetFramebufferSize(window->handle, (int *)width, (int *)height);
 }
+
+#pragma weak window_resize_callback
+void window_resize_callback(void *handle, int width, int height) {}
 
 Error surface_handle_create(VkSurfaceKHR *handle, Instance instance) {
   if(!handle || !instance) return NULL_HANDLE_ERROR;
