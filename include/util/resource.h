@@ -3,22 +3,23 @@
 
 #include "util/error.h"
 
-typedef struct Resource *Resource;
-
 typedef enum {
   TYPE_UNKNOWN = 0,
   TYPE_SPIRV = 1,
 } ResourceType;
 
+typedef struct Resource {
+  ResourceType type;
+  const char *name;
+  unsigned size;
+  char *handle;
+} Resource;
+
 extern const unsigned resources_length;
 extern Resource resources[];
 
-Error resource_create(Resource *resource, ResourceType type, const char *name, const char *data, unsigned size);
-void resource_destroy(Resource resource);
-
-const char *resource_get_handle(Resource resource);
-const char *resource_get_name(Resource resource);
-unsigned resource_get_size(Resource resource);
+Error resource_create(Resource *resource, const char *data);
+void resource_destroy(const Resource *resource);
 
 Error resources_load();
 void resources_destroy();

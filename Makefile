@@ -1,25 +1,27 @@
 cflags := -O0 -g -fno-omit-frame-pointer -Wall -Werror -fpic -Iinclude
 
 src := \
-	src/window.c \
-	src/renderer.c \
-	src/renderer/vulkan/instance.c \
-	src/renderer/vulkan/physical_devices.c \
-	src/renderer/vulkan/device.c \
-	src/renderer/vulkan/queue.c \
-	src/renderer/vulkan/surface.c \
-	src/renderer/vulkan/swapchain.c \
-	src/renderer/vulkan/images.c \
-	src/renderer/vulkan/image_views.c \
-	src/renderer/vulkan/shader_module.c \
-	src/renderer/vulkan/pipeline_layout.c \
-	src/renderer/vulkan/render_pass.c \
-	src/renderer/vulkan/pipeline.c \
-	src/renderer/vulkan/framebuffers.c \
-	src/renderer/vulkan/command_pool.c \
-	src/renderer/vulkan/command_buffer.c \
-	src/renderer/vulkan/semaphore.c \
-	src/renderer/vulkan/fence.c \
+	src/window/glfw/window.c \
+	src/vulkan/instance.c \
+	src/vulkan/physical_devices.c \
+	src/vulkan/surface_formats.c \
+	src/vulkan/present_modes.c \
+	src/vulkan/device.c \
+	src/vulkan/queue.c \
+	src/vulkan/swapchain.c \
+	src/vulkan/images.c \
+	src/vulkan/image_views.c \
+	src/vulkan/shader_module.c \
+	src/vulkan/pipeline_layout.c \
+	src/vulkan/render_pass.c \
+	src/vulkan/framebuffers.c \
+	src/vulkan/command_pool.c \
+	src/vulkan/command_buffer.c \
+	src/vulkan/semaphore.c \
+	src/vulkan/fence.c \
+	src/vulkan/raw_buffer.c \
+	src/vulkan/device_memory.c \
+	src/vulkan/buffer.c \
 	src/util/resource.c \
 	src/util/resources.c \
 	src/util/plataform/unix/file.c

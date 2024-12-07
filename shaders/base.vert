@@ -1,11 +1,7 @@
 #version 450
 
-vec2 vertexs[3] = {
-  vec2(0.0, -0.5),
-  vec2(0.5, 0.5),
-  vec2(-0.5, 0.5),
-};
+layout(location = 0) in vec2 in_vertex;
 
 void main() {
-  gl_Position = vec4(vertexs[gl_VertexIndex], 0, 1);
+  gl_Position = vec4(in_vertex, 0, 1);
 }

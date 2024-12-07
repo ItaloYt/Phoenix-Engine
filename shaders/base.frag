@@ -1,7 +1,7 @@
 #version 450
 
-layout(location = 0) out vec4 pixel;
+layout(location = 0) out vec4 out_color;
 
 void main() {
-  pixel = vec4(1);
+  out_color = vec4(1);
 }

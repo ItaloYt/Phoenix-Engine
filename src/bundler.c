@@ -4,44 +4,48 @@
 #include <stdlib.h>
 #include <string.h>
 
-File output;
-File input;
-File resource;
-
-#define full_model                                                                                                                              \
-  "#include \"util/error.h\"\n"                                                                                                                 \
-  "#include \"util/resource.h\"\n"                                                                                                              \
-  "\n"                                                                                                                                          \
-  "struct ResourceBundle {\n"                                                                                                                   \
-  "  const char *name;\n"                                                                                                                       \
-  "  const char *data;\n"                                                                                                                       \
-  "  ResourceType type;\n"                                                                                                                      \
-  "  unsigned size;\n"                                                                                                                          \
-  "};\n"                                                                                                                                        \
-  "\n"                                                                                                                                          \
-  "const unsigned resources_length = %u;\n"                                                                                                     \
-  "Resource resources[%u];\n"                                                                                                                   \
-  "\n"                                                                                                                                          \
-  "Error resources_load() {\n"                                                                                                                  \
-  "  struct ResourceBundle bundles[] = {\n"                                                                                                     \
-  "%s"                                                                                                                                          \
-  "  };\n"                                                                                                                                      \
-  "\n"                                                                                                                                          \
-  "  for(unsigned index = 0; index < resources_length; ++index) {\n"                                                                            \
-  "    if(resource_create(resources + index, bundles[index].type, bundles[index].name, bundles[index].data, bundles[index].size) != SUCCESS)\n" \
-  "      return RESOURCE_LOAD_ERROR;\n"                                                                                                         \
-  "  }\n"                                                                                                                                       \
-  "\n"                                                                                                                                          \
-  "  return SUCCESS;\n"                                                                                                                         \
+#define full_model                                                               \
+  "#include \"util/error.h\"\n"                                                  \
+  "#include \"util/resource.h\"\n"                                               \
+  "\n"                                                                           \
+  "struct ResourceBundle {\n"                                                    \
+  "  ResourceType type;\n"                                                       \
+  "  const char *name;\n"                                                        \
+  "  unsigned size;\n"                                                           \
+  "  const char *data;\n"                                                        \
+  "};\n"                                                                         \
+  "\n"                                                                           \
+  "const unsigned resources_length = %u;\n"                                      \
+  "Resource resources[%u];\n"                                                    \
+  "\n"                                                                           \
+  "Error resources_load() {\n"                                                   \
+  "  struct ResourceBundle bundles[] = {\n"                                      \
+  "%s"                                                                           \
+  "  };\n"                                                                       \
+  "\n"                                                                           \
+  "  for(unsigned index = 0; index < resources_length; ++index) {\n"             \
+  "    resources[index].type = bundles[index].type;\n"                           \
+  "    resources[index].name = bundles[index].name;\n"                           \
+  "    resources[index].size = bundles[index].size;\n"                           \
+  "\n"                                                                           \
+  "    if(resource_create(resources + index, bundles[index].data) != SUCCESS)\n" \
+  "      return RESOURCE_LOAD_ERROR;\n"                                          \
+  "  }\n"                                                                        \
+  "\n"                                                                           \
+  "  return SUCCESS;\n"                                                          \
   "}\n"
 
 #define resource_model             \
   "    (struct ResourceBundle){\n" \
-  "      .name = \"%.*s\",\n"      \
-  "      .data = (char[]){ %s},\n" \
   "      .type = %s,\n"            \
+  "      .name = \"%.*s\",\n"      \
   "      .size = %u,\n"            \
+  "      .data = (char[]){ %s},\n" \
   "    },\n"
+
+File output;
+File input;
+File resource;
 
 char *dbuffer; // Data Buffer
 char *rbuffer; // Resource Buffer
@@ -61,35 +65,15 @@ int main(int argc, char **argv) {
   if(argc < 3) return 1;
 
   atexit(clear);
-
-  // Create files
-  if(file_create(&output) != SUCCESS) {
-    printf("ERROR: Failed to create output file\n");
-    return 1;
-  }
-
-  if(file_create(&input) != SUCCESS) {
-    printf("ERROR: Failed to create input file\n");
-    return 1;
-  }
-
-  if(file_create(&resource) != SUCCESS) {
-    printf("ERROR: Failed to create resource file\n");
-    return 1;
-  }
-
-  if(file_open(output, argv[1], &(FilePermission){ .write = 1, .create = 1, .truncate = 1 }) != SUCCESS) {
+  if(file_open(&output, &(FilePermission){ .write = 1, .create = 1, .truncate = 1 }, argv[1]) != SUCCESS) {
     printf("ERROR: Failed to open output file '%s'\n", argv[1]);
     return 1;
   }
 
-  if(file_open(input, argv[2], &(FilePermission){ .read = 1 }) != SUCCESS) {
+  if(file_open(&input, &(FilePermission){ .read = 1 }, argv[2]) != SUCCESS) {
     printf("ERROR: Failed to open input file '%s'\n", argv[2]);
     return 1;
   }
-
-  const char *data = file_get_buffer(input);
-  unsigned size = file_get_size(input);
 
   // Read CSV
   const char *fields[3];
@@ -97,12 +81,12 @@ int main(int argc, char **argv) {
   unsigned char field = 0;
   unsigned char is_field = 0;
 
-  for(unsigned index = 0; index < size; ++index) {
-    if(data[index] == '"' && (index == 0 || data[index - 1] != '\\')) {
+  for(unsigned index = 0; index < input.size; ++index) {
+    if(input.buffer[index] == '"' && (index == 0 || input.buffer[index - 1] != '\\')) {
       is_field = !is_field;
 
       if(!is_field) {
-        lengths[field] = data + index - fields[field];
+        lengths[field] = input.buffer + index - fields[field];
         field++;
         continue;
       }
@@ -112,11 +96,11 @@ int main(int argc, char **argv) {
         continue;
       }
 
-      fields[field] = data + index + 1;
+      fields[field] = input.buffer + index + 1;
       continue;
     }
 
-    if(!is_field && data[index] == '\n') {
+    if(!is_field && input.buffer[index] == '\n') {
       if(field < 3) {
         printf("ERROR: Missing fields\n");
         continue;
@@ -144,12 +128,12 @@ int main(int argc, char **argv) {
 
   snprintf(buffer, length + 1, full_model, resources_length, resources_length, rbuffer);
 
-  if(file_write(output, 0, buffer, length) != SUCCESS) {
+  if(file_write(&output, 0, buffer, length) != SUCCESS) {
     printf("ERROR: Failed to write to output file\n");
     return 1;
   }
 
-  if(file_flush(output) != SUCCESS) {
+  if(file_flush(&output) != SUCCESS) {
     printf("ERROR: Failed to flush output file\n");
     return 1;
   }
@@ -168,38 +152,33 @@ int parse_resource(const char **fields, unsigned *lengths) {
   path[lengths[0]] = 0;
 
   memcpy(path, fields[0], lengths[0]);
-  // memcpy(name, fields[1], lengths[1]);
-  // memcpy(type, fields[2], lengths[2]);
 
-  if(file_open(resource, path, &(FilePermission){ .read = 1 }) != SUCCESS) {
+  if(file_open(&resource, &(FilePermission){ .read = 1 }, path) != SUCCESS) {
     printf("ERROR: Failed to open resource file '%s'\n", path);
     return 1;
   }
 
-  const char *data = file_get_buffer(resource);
-  unsigned size = file_get_size(resource);
-
   // Setup data buffer
   // "0x.., " -> 6 bytes
-  tmp = realloc(dbuffer, 6 * size + 1);
+  tmp = realloc(dbuffer, 6 * resource.size + 1);
   if(!tmp) {
     printf("ERROR: Failed to allocate data buffer\n");
     return 1;
   }
   dbuffer = tmp;
-  dbuffer[6 * size] = 0;
+  dbuffer[6 * resource.size] = 0;
 
-  for(unsigned byte = 0, offset = 0; byte < size; ++byte, offset += 6) {
+  for(unsigned byte = 0, offset = 0; byte < resource.size; ++byte, offset += 6) {
     dbuffer[offset + 0] = '0';
     dbuffer[offset + 1] = 'x';
-    dbuffer[offset + 2] = hex[(data[byte] >> 4) & 0xf];
-    dbuffer[offset + 3] = hex[data[byte] & 0xf];
+    dbuffer[offset + 2] = hex[(resource.buffer[byte] >> 4) & 0xf];
+    dbuffer[offset + 3] = hex[resource.buffer[byte] & 0xf];
     dbuffer[offset + 4] = ',';
     dbuffer[offset + 5] = ' ';
   }
 
   const char *type = find_type(fields[2], lengths[2]);
-  unsigned length = snprintf(NULL, 0, resource_model, lengths[1], fields[1], dbuffer, type, size);
+  unsigned length = snprintf(NULL, 0, resource_model, type, lengths[1], fields[1], resource.size, dbuffer);
 
   tmp = realloc(rbuffer, rbuffer_length + length + 1);
   if(!tmp) {
@@ -208,7 +187,7 @@ int parse_resource(const char **fields, unsigned *lengths) {
   }
   rbuffer = tmp;
 
-  snprintf(rbuffer + rbuffer_length, length + 1, resource_model, lengths[1], fields[1], dbuffer, type, size);
+  snprintf(rbuffer + rbuffer_length, length + 1, resource_model, type, lengths[1], fields[1], resource.size, dbuffer);
 
   rbuffer_length += length;
 
@@ -227,15 +206,14 @@ void clear() {
   // if(file_close(resource) != SUCCESS)
   //   printf("ERROR: Failed to close resource file\n");
 
-  if(file_close(input) != SUCCESS)
+  if(file_close(&input) != SUCCESS)
     printf("ERROR: Failed to close input file\n");
 
-  if(file_close(output) != SUCCESS)
+  if(file_close(&output) != SUCCESS)
     printf("ERROR: Failed to close output file\n");
 
-  file_destroy(resource);
-  file_destroy(input);
-  file_destroy(output);
+  file_destroy(&input);
+  file_destroy(&output);
 }
 
 const char *find_type(const char *type, unsigned length) {
