@@ -4,6 +4,6 @@
 #include "util/error.h"
 #include <vulkan/vulkan_core.h>
 
-Error vulkan_pipeline_layout_create(VkPipelineLayout *layout, VkDevice device);
+Error vulkan_pipeline_layout_create(VkPipelineLayout *layout, VkDevice device, const VkDescriptorSetLayout *sets, unsigned sets_length);
 
 #endif

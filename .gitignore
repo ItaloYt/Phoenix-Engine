@@ -6,3 +6,5 @@ compile_flags.txt
 todo.txt
 src/**/*.d
 src/**/*.o
+test/**/*.o
+test/math_speed

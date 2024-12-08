@@ -30,7 +30,7 @@ Error vulkan_instance_create(VkInstance *instance, const char *name, unsigned ve
       .pApplicationName = name,
       .applicationVersion = version,
       .pEngineName = "Phoenix",
-      .engineVersion = VK_MAKE_API_VERSION(0, 1, 0, 0),
+      .engineVersion = VK_MAKE_API_VERSION(0, 1, 1, 0),
       .apiVersion = VK_API_VERSION_1_3,
     },
     .enabledLayerCount = 1,

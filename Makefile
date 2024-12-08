@@ -22,9 +22,13 @@ src := \
 	src/vulkan/raw_buffer.c \
 	src/vulkan/device_memory.c \
 	src/vulkan/buffer.c \
+	src/vulkan/descriptor_set_layout.c \
+	src/vulkan/descriptor_pool.c \
+	src/vulkan/descriptor_set.c \
 	src/util/resource.c \
 	src/util/resources.c \
-	src/util/plataform/unix/file.c
+	src/util/plataform/unix/file.c \
+	src/util/math.c
 
 # src/renderer/vulkan/pipeline.c \
 
@@ -40,10 +44,14 @@ spirv := $(addsuffix .spirv,$(shaders))
 .PHONY: compile
 compile: libphoenix.so libphoenix.a
 
+.PHONY: test
+test: compile
+	@clang $(cflags) -o test/math_speed test/math_speed.c src/util/math.o
+
 .PHONY: clear
 clear:
 	@#bundler src/bundler.o src/static.o src/bundler.d
-	@rm -rf libphoenix.so libphoenix.a bundler $(obj) src/bundler.o $(spirv) $(deps) src/bundler.d 
+	@rm -rf libphoenix.so libphoenix.a bundler $(obj) src/bundler.o $(spirv) $(deps) src/bundler.d
 
 bundler:
 	@echo "Linking $@"
@@ -65,15 +73,15 @@ src/util/resources.c:
 	@echo "Generating source '$@'"
 	@./bundler $@ resources.csv
 
-libphoenix.so: 
+libphoenix.so:
 	@echo "Linking $@"
 	@#src/static.o
-	@clang -shared -o $@ $(obj) 
+	@clang -shared -o $@ $(obj)
 
 libphoenix.a:
 	@echo "Linking $@"
 	@#src/static.o
-	@ar rcs $@ $(obj) 
+	@ar rcs $@ $(obj)
 
 # DEPENDENCIES
 bundler: src/bundler.o src/util/plataform/unix/file.o
